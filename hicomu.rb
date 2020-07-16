@@ -1,6 +1,7 @@
 
 $samples_beat = sample_names(:bd)
 $scales = scale_names
+$main_tone = :d
 beats = 8
 
 beat_notes = Array.new(beats){ |n| {note: nil, duration: 1} }
@@ -17,7 +18,10 @@ live_loop :beat do
   puts set_beat_notes.inspect
   if set_beat_notes.length < settings[:notes]
     (settings[:notes] - set_beat_notes.length).times do
-      available_pos = Array.new(beats){ |n| n+1 } - set_beat_notes
+      available_pos = Array.new(beats){ |n=0| n } - set_beat_notes
+      puts "#{set_beat_notes.length} < #{settings[:notes]}"
+      puts available_pos.inspect
+      puts set_beat_notes.inspect
       pos = available_pos[rrand_i(0,available_pos.length - 1)]
       r = rrand_i(-1,$samples_beat.length-1)
       beat_notes[pos] = {note: r == -1 ? nil : $samples_beat[r], duration: intervals.choose}
@@ -44,6 +48,7 @@ end
 live_loop :ambient do
   
   sync :beat
+  
   use_bpm get(:bpm)
   
   beats = get_beats
@@ -53,13 +58,18 @@ live_loop :ambient do
   notes = (ring 1, 1/2.0, 1/4.0, 1/8.0).shuffle
   amb_scale = $scales[settings[:scale]]
   puts amb_scale
-  puts get(:bpm)
-  play scale(:d3, amb_scale, octaves: 2).tick, attack: beats / 8, sustain: beats / 4, release: beats / 2 + beats / 4, amp: 0.1
   
+  
+  #with_fx :whammy, pitch: 5, time_dis: 6 do
+  with_fx :panslicer, pan_max: 1.0, pan_min: -1.0, phase: beats, wave: 2 do
+    play scale(:d2, amb_scale, octaves: 2).choose, attack: beats / 8, sustain: beats / 4, release: beats / 2 + beats / 4, amp: 0.3
+  end
+  #end
 end
 
 live_loop :arpeggio do
   sync :beat
+  
   use_bpm get(:bpm)
   settings = refresh_arpeggio_settings
   
@@ -70,9 +80,12 @@ live_loop :arpeggio do
   arp_scale = $scales[settings[:scale]]
   sleep 1
   8.times do
-    play scale(:d5, arp_scale).choose, amp: 0.05
-    sleep notes.choose
+    with_fx :pan, pan: rrand(-1,1) do
+      play scale(:d, arp_scale).choose, amp: 0.1
+      sleep notes.choose
+    end
   end
+  
 end
 
 def refresh_ambient_settings
