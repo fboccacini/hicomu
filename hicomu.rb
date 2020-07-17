@@ -18,8 +18,11 @@ live_loop :beat do
   puts set_beat_notes.inspect
   if set_beat_notes.length < settings[:notes]
     (settings[:notes] - set_beat_notes.length).times do
-      available_pos = Array.new(beats){ |n=0| n } - set_beat_notes
+      available_pos = Array.new(beats){ |n=0| n }
       puts "#{set_beat_notes.length} < #{settings[:notes]}"
+      puts beats
+      puts available_pos.inspect
+      available_pos -= set_beat_notes
       puts available_pos.inspect
       puts set_beat_notes.inspect
       pos = available_pos[rrand_i(0,available_pos.length - 1)]
@@ -51,7 +54,6 @@ live_loop :ambient do
   
   use_bpm get(:bpm)
   
-  beats = get_beats
   settings = refresh_ambient_settings
   puts settings.inspect
   #use_random_seed $settings[:rythmseed]
@@ -81,7 +83,7 @@ live_loop :arpeggio do
   sleep 1
   8.times do
     with_fx :pan, pan: rrand(-1,1) do
-      play scale(:d, arp_scale).choose, amp: 0.1
+      play scale(scale(:d, arp_scale).tick, arp_scale).choose, amp: 0.1
       sleep notes.choose
     end
   end
