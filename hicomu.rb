@@ -1,159 +1,46 @@
 
 $samples_beat = sample_names(:bd)
 $scales = scale_names
-$main_tone = :d
-beats = 8
+$bar = 4
+$min_note_exp = 4
 
-beat_notes = Array.new(beats){ |n| {note: nil, duration: 1} }
-set_beat_notes = Array.new
+live_loop :main do
+  puts :main
+  sleep $bar
+end
+
+live_loop :bass_line do
+  sync :main
+  settings = refresh_beat_settings
+  
+  use_random_seed settings[:rhythm_seed]
+  notes = settings[:notes]
+  
+  ($bar * notes - 1).times do
+    do_sound = rand(0..1) > 0.5
+    with_fx :pan, pan: rrand(-1,1) do
+      play scale(scale(:d1, :minor_pentatonic).tick, :minor_pentatonic).choose, amp: 0.6# if do_sound
+    end
+    puts :bass
+    sleep 1/notes
+  end
+end
 
 live_loop :beat do
+  sync :main
   settings = refresh_beat_settings
-  puts settings
   
-  use_bpm get(:bpm)
-  use_random_seed settings[:rythm_seed]
+  use_random_seed settings[:rhythm_seed]
+  notes = settings[:notes]
   
-  intervals = (ring 1, 1/2.0, 1/4.0, 1/8.0)
-  puts set_beat_notes.inspect
-  if set_beat_notes.length < settings[:notes]
-    (settings[:notes] - set_beat_notes.length).times do
-      available_pos = Array.new(beats){ |n=0| n }
-      puts "#{set_beat_notes.length} < #{settings[:notes]}"
-      puts beats
-      puts available_pos.inspect
-      available_pos -= set_beat_notes
-      puts available_pos.inspect
-      puts set_beat_notes.inspect
-      pos = available_pos[rrand_i(0,available_pos.length - 1)]
-      r = rrand_i(-1,$samples_beat.length-1)
-      beat_notes[pos] = {note: r == -1 ? nil : $samples_beat[r], duration: intervals.choose}
-      set_beat_notes << pos
-    end
-  end
-  
-  if set_beat_notes.length > settings[:notes]
-    (set_beat_notes.length - settings[:notes]).times do
-      beat_notes[set_beat_notes.delete_at(-1)][:note] = nil
-    end
-  end
-  
-  puts beat_notes.inspect
-  beat_notes.each do |note|
-    puts note
-    puts get(:bpm)
-    sample note[:note]
-    sleep note[:duration]
-  end
-end
-
-
-live_loop :ambient do
-  
-  sync :beat
-  
-  use_bpm get(:bpm)
-  
-  settings = refresh_ambient_settings
-  puts settings.inspect
-  #use_random_seed $settings[:rythmseed]
-  notes = (ring 1, 1/2.0, 1/4.0, 1/8.0).shuffle
-  amb_scale = $scales[settings[:scale]]
-  puts amb_scale
-  
-  
-  #with_fx :whammy, pitch: 5, time_dis: 6 do
-  with_fx :panslicer, pan_max: 1.0, pan_min: -1.0, phase: beats, wave: 2 do
-    play scale(:d2, amb_scale, octaves: 2).choose, attack: beats / 8, sustain: beats / 4, release: beats / 2 + beats / 4, amp: 0.3
-  end
-  #end
-end
-
-live_loop :arpeggio do
-  sync :beat
-  
-  use_bpm get(:bpm)
-  settings = refresh_arpeggio_settings
-  
-  puts settings.inspect
-  
-  use_random_seed settings[:rythm_seed]
-  notes = (ring 1, 1/2.0, 1/4.0).shuffle
-  arp_scale = $scales[settings[:scale]]
-  sleep 1
-  8.times do
+  ($bar * notes - 1).times do
+    do_sound = rand(0..1) > 0.5
     with_fx :pan, pan: rrand(-1,1) do
-      play scale(scale(:d, arp_scale).tick, arp_scale).choose, amp: 0.1
-      sleep notes.choose
+      sample $samples_beat.choose if do_sound
     end
+    puts :beat
+    sleep 1/notes
   end
-  
-end
-
-def refresh_ambient_settings
-  settings = {
-    bars_change: 8,
-    notes: time_cycle(cycle: :hour,
-                      cycle_length: 0.5,
-                      step: :minute,
-                      step_length: 1,
-                      max: 4,
-                      min: 0,
-                      round: true
-                      ),
-    rythm_seed: time_cycle(cycle: :hour,
-                           cycle_length: 1,
-                           step: :minute,
-                           step_length: 1,
-                           max: 65535,
-                           min: 0,
-                           round: false
-                           ),
-    scale: time_cycle(cycle: :day,
-                      cycle_length: 1,
-                      step: :minute,
-                      step_length: 15,
-                      max: $scales.length - 1,
-                      min: 0,
-                      round: true
-                      )
-  }
-  
-  
-  
-  return settings
-end
-
-def refresh_arpeggio_settings
-  settings = {
-    bars_change: 1,
-    notes: time_cycle(cycle: :hour,
-                      cycle_length: 1,
-                      step: :minute,
-                      step_length: 1,
-                      max: 8,
-                      min: 0,
-                      round: true
-                      ),
-    rythm_seed: time_cycle(cycle: :hour,
-                           cycle_length: 1,
-                           step: :minute,
-                           step_length: 5,
-                           max: 65535,
-                           min: 0,
-                           round: false
-                           ),
-    scale: time_cycle(cycle: :hour,
-                      cycle_length: 1,
-                      step: :minute,
-                      step_length: 1,
-                      max: $scales.length - 1,
-                      min: 0,
-                      round: true
-                      )
-  }
-  
-  return settings
 end
 
 def refresh_beat_settings
@@ -168,23 +55,23 @@ def refresh_beat_settings
                      round: true,
                      circle: true
                      ),
-    notes: time_cycle(cycle: :hour,
-                      cycle_length: 0.25,
-                      step: :minute,
-                      step_length: 1,
-                      max: 8,
-                      min: 0,
-                      round: true,
-                      circle: true
-                      ),
-    rythm_seed: time_cycle(cycle: :hour,
-                           cycle_length: 1,
-                           step: :minute,
-                           step_length: 1,
-                           max: 65535,
-                           min: 0,
-                           round: false
-                           )
+    notes: (2 ** time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 1,
+                            max: $min_note_exp,
+                            min: 0,
+                            round: true,
+                            circle: false
+                            )) * 1.0,
+    rhythm_seed: time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 1,
+                            max: 65535,
+                            min: 0,
+                            round: false
+                            )
   }
   
   set(:bpm, settings[:bpm]) if get(:bpm) != settings[:bpm]
