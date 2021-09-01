@@ -1,49 +1,154 @@
 
 $samples_beat = sample_names(:bd)
+$fxs = fx_names()
 $scales = scale_names
 $bar = 4
 $min_note_exp = 4
-
-live_loop :main do
-  puts :main
-  sleep $bar
-end
+$err_fx = []
 
 live_loop :bass_line do
-  sync :main
-  settings = refresh_beat_settings
+  #sync :main
+  settings = refresh_bass_settings
   
   use_random_seed settings[:rhythm_seed]
   notes = settings[:notes]
-  
-  ($bar * notes - 1).times do
-    do_sound = rand(0..1) > 0.5
-    with_fx :pan, pan: rrand(-1,1) do
-      play scale(scale(:d1, :minor_pentatonic).tick, :minor_pentatonic).choose, amp: 0.6# if do_sound
+  fx = $fxs.choose
+  ($bar * notes).times do
+    begin
+      do_sound = rand(0..1) > 0.5
+      with_fx :pan, pan: rrand(-1,1) do
+        with_fx fx, $fx_settings[fx] do
+          play scale(scale(:d1, :minor_pentatonic).tick, :minor_pentatonic).choose, amp: 0.6 if do_sound
+        end
+      end
+      puts :bass
+      puts fx
+    rescue
+      $err_fx.push fx
     end
-    puts :bass
     sleep 1/notes
   end
+  puts :bass
+  puts fx
+end
+
+live_loop :ambient do
+  #sync :main
+  settings = refresh_ambient_settings
+  
+  use_random_seed settings[:rhythm_seed]
+  notes = settings[:notes]
+  fx = $fxs.choose
+  #($bar * notes).times do
+  begin
+    do_sound = rand(0..1) > 0.5
+    with_fx :pan, pan: rrand(-1,1) do
+      with_fx fx, $fx_settings[fx] do
+        play scale(:d4, :minor_pentatonic).choose, amp: 0.4, attack: $bar * 0.3, release: $bar * 3
+      end
+    end
+    puts :bass
+    puts fx
+  rescue
+    $err_fx.push fx
+  end
+  sleep $bar * 4#1/notes
+  #end
+  puts :ambient
+  puts fx
 end
 
 live_loop :beat do
-  sync :main
+  #sync :main
   settings = refresh_beat_settings
   
   use_random_seed settings[:rhythm_seed]
   notes = settings[:notes]
   
-  ($bar * notes - 1).times do
+  ($bar * notes).times do
     do_sound = rand(0..1) > 0.5
     with_fx :pan, pan: rrand(-1,1) do
       sample $samples_beat.choose if do_sound
     end
-    puts :beat
+    puts $err_fx
     sleep 1/notes
   end
+  puts :beat
+end
+
+def refresh_ambient_settings
+  settings = {
+    bars_change: 8,
+    bpm:  time_cycle(cycle: :hour,
+                     cycle_length: 1,
+                     step: :minute,
+                     step_length: 1,
+                     max: 120,
+                     min: 60,
+                     round: true,
+                     circle: true
+                     ),
+    notes: (2 ** time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 1,
+                            max: $min_note_exp,
+                            min: 0,
+                            round: true,
+                            circle: false
+                            )) * 1.0,
+    rhythm_seed: time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 3,
+                            max: 65535,
+                            min: 0,
+                            round: false
+                            )
+  }
+  
+  set(:bpm, settings[:bpm]) if get(:bpm) != settings[:bpm]
+  
+  return settings
 end
 
 def refresh_beat_settings
+  settings = {
+    bars_change: 8,
+    bpm:  time_cycle(cycle: :hour,
+                     cycle_length: 1,
+                     step: :minute,
+                     step_length: 1,
+                     max: 120,
+                     min: 60,
+                     round: true,
+                     circle: true
+                     ),
+    notes: (2 ** time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 1,
+                            max: $min_note_exp,
+                            min: 0,
+                            round: true,
+                            circle: false
+                            )) * 1.0,
+    rhythm_seed: time_cycle(cycle: :hour,
+                            cycle_length: 1,
+                            step: :minute,
+                            step_length: 2,
+                            max: 65535,
+                            min: 0,
+                            round: false
+                            )
+  }
+  
+  set(:bpm, settings[:bpm]) if get(:bpm) != settings[:bpm]
+  
+  return settings
+end
+
+def refresh_bass_settings
   settings = {
     bars_change: 8,
     bpm:  time_cycle(cycle: :hour,
@@ -140,3 +245,14 @@ end
 def get_beats
   return ((get(:bpm).to_f / 60) * 4)
 end
+
+
+$fx_settings = Hash.new
+fx_temp = $fxs.to_a
+fx_temp.delete(:record)
+$fxs = fx_temp.ring
+$fxs.each { |name| $fx_settings[name] = Hash.new }
+#bname = ("record_buf")
+#$fx_settings[:record] = {
+#  buffer: buffer(bname,8)
+#}
